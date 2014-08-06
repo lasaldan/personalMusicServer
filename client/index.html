@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html ng-app="RadioDan" lang="en">
+<head>
+	<script type="text/javascript" src="js/angular.min.js"></script>
+	
+	<script type="text/javascript" src="js/radioDan.js"></script>
+	<script type="text/javascript" src="js/radioDan.playlistCtrls.js"></script>
+	<script type="text/javascript" src="js/radioDan.audioCtrls.js"></script>
+	<script type="text/javascript" src="js/radioDan.trackCtrls.js"></script>
+	<script type="text/javascript" src="js/radioDan.services.js"></script>
+	<script type="text/javascript" src="js/radioDan.directives.js"></script>
+	
+	<script type="text/javascript" src="js/xeditable.min.js"></script>
+	
+	<link rel="stylesheet" href="css/screen.css" />
+	<link rel="stylesheet" href="css/bootstrap.min.css" />
+	<link rel="stylesheet" href="css/xeditable.css" />
+	
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta charset="utf-8">
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	
+	<title>RadioDan</title>
+</head>
+
+<body ng-controller="PlayerController">
+	<div class="container-fluid">
+		<div id="priCol" class="col-md-7">
+			<div id="mediaPlayerContainer" class="row" ng-controller="AudioController">
+			
+				<div id="coverArt" class="pull-left">
+					<img src="" />
+				</div>
+				
+				<div id="currentTrackInfo" class="pull-left">
+				
+					<h4>{{track.title}}</h4>
+					<h6>
+						<span ng-repeat="artist in track.artists">
+							{{artist}}
+						</span>
+					</h6>
+					<p>{{track.notes}}</p>
+					
+					<div id="playerControls" class="pull-left">
+						<span class="glyphicon glyphicon-backward"></span>
+						<span class="glyphicon glyphicon-play" ng-click="play()" ng-hide="playing"></span>
+						<span class="glyphicon glyphicon-pause" ng-click="pause()" ng-show="playing"></span>
+						<span class="glyphicon glyphicon-forward"></span>
+						<span class="glyphicon glyphicon-volume-up"></span>
+						<span class="glyphicon glyphicon-retweet"></span>
+						<span class="glyphicon glyphicon-random"></span>
+					</div>
+					
+				</div>
+				
+				<div id="progressBarBackground">
+					<div id="progressBar" ng-style="variableWidth"></div>
+				</div>
+				
+				<audio id="audioPlayer" ng-model="audioElement"></audio>
+			</div>
+			
+			<div id="currentPlaylist" class="row" ng-controller="CurrentPlaylistController as currListCtrl">
+				<div>
+					<h4>{{playlistName}} 
+						<span class="glyphicon glyphicon-plus pull-right" ng-show="!addTrackForm" ng-click="addTrackForm=true;"></span>
+						<span class="glyphicon glyphicon-remove pull-right" ng-show="addTrackForm" ng-click="addTrackForm=false;"></span>
+					</h4>
+						<div id="trackSource" ng-show="addTrackForm">
+							<h5>Add Tracks to Playlist:</h5>
+							<a class="source" ng-click="selectTracks()" ng-show="allowRemove">From Music Library</a>
+							<a class="source" ng-click="uploadTracks()">Upload New Tracks</a>
+						</div>
+						<div id="overlay" ng-show="addingTracks || uploadingTracks" ng-click="hideOverlay()"></div>
+						<div id="tracksFromLibraryForm" class="popOver" ng-show="addingTracks" ng-controller="TrackController as trackCtrl">
+							<h2 class='heading'>{{playlistName}}</h2>
+							<ul class="tracks">
+								<li class="headings">
+									<span class="playlistOrder">&nbsp;</span>
+									<span class="trackTitle">Track Title</span>
+									<span class="trackArtist">Artists</span>
+									<span class="trackIcons fr">&nbsp;</span>
+									<span class="trackDuration fr">Duration</span>
+								</li>
+								
+								<li class="greyBar" 
+									ng-repeat="track in tracks" 
+									ng-init="showDetails = false">
+									
+									<span class="playlistOrder cl"><input type="checkbox" ng-model="currentList[track._id]"/></span>
+									<span class="trackTitle">{{track.title}}</span>
+									<span class="trackArtist">
+										<span ng-repeat="artist in track.artists">
+											{{artist}}
+										</span>
+									</span>
+									<span class="trackIcons fr"><span class="glyphicon glyphicon-edit"></span></span>
+									<span class="trackDuration fr">{{track.duration * 1000 | date: 'm:ss'}}</span>
+									
+									<span class="indent cl" ng-show="showDetails">&nbsp;</span>
+									<span class="trackInfo animate-show" ng-show="showDetails">
+										Track Info
+									</span>
+									<div style="clear: both"></div>
+								</li>
+						
+						
+							</ul>
+							<input type="button" class="btn" value="Save Changes" ng-click="save();hideOverlay();" />
+							<input type="button" class="btn" value="Cancel" ng-click="hideOverlay()" />
+						</div>
+						<div id="uploadTracksForm" class="popOver" 
+							ng-show="uploadingTracks" 
+							ng-controller="TrackUploadController">
+							
+							<h2 class='heading'>{{playlistName}}</h2>
+							<form action="http://lasaldan.com:3000/radio/api/tracks/" method="post" enctype="multipart/form-data">
+								<input type="file" name="track[]" multiple />
+								<input type="text" name="title" />
+								<input type="submit"/>
+							</form>
+						</div>
+					
+					<ul class="tracks">
+						<li class="headings">
+							<span class="playlistOrder">&nbsp;</span>
+							<span class="trackTitle">Track Title</span>
+							<span class="trackArtist">Artists</span>
+							<span class="trackIcons fr">&nbsp;</span>
+							<span class="trackDuration fr">Duration</span>
+						</li>
+						
+						<li ng-show="!tracks.length" class="empty">No Tracks Found in Playlist</li>
+						
+						<li class="greyBar hoverable" 
+							ng-repeat="track in tracks" 
+							ng-init="showDetails = false" 
+							ng-click="playTrack(track._id)">
+							
+							<span class="playlistOrder cl">{{$index + 1}}.</span>
+							<span class="trackTitle">{{track.title}}</span>
+							<span class="trackArtist">
+								<span ng-repeat="artist in track.artists">
+									{{artist}}
+								</span>
+							</span>
+							<span class="trackIcons fr">&nbsp;<!--<span class="glyphicon glyphicon-edit"></span>--></span>
+							<span class="trackDuration fr">{{track.duration * 1000 | date: 'm:ss'}}</span>
+							
+							<span class="indent cl" ng-show="showDetails">&nbsp;</span>
+							<span class="trackInfo animate-show" ng-show="showDetails">
+								Track Info
+							</span>
+							<div style="clear: both"></div>
+						</li>
+					</ul>
+					
+				</div>
+			</div>
+		</div>
+		<div id="secCol" class="col-md-4 col-md-offset-1">
+			
+			<div id="playlistsContainer" ng-controller="PlaylistController as playCtrl">
+			
+				<h4 class="row">Playlists 
+					<span class="glyphicon glyphicon-plus pull-right" 
+						ng-hide="showAddForm" 
+						ng-click="showAddForm=true"></span>
+					<span class="glyphicon glyphicon-remove pull-right" 
+						ng-show="showAddForm" 
+						ng-click="showAddForm=false"></span>
+				</h4>
+				
+				<form class="row mini" ng-show="showAddForm" novalidate name="newPlaylist">
+					
+					<fieldset class="col-md-10 col-md-offset-1">
+						New Playlist Name: 
+						<input type="text" ng-model="newPlaylistName" placeholder="" name="title" />
+						<input type="submit" class="btn" value="Save" ng-click="addPlaylist()" />
+					</fieldset>
+					
+				</form>
+				
+				<div class="playlists row">
+					<ul>
+						<li ng-click="requestPlaylistChange()">
+							<span>All Tracks</span>
+						</li>
+						<li ng-repeat="playlist in playlists | orderBy:'name'" 
+							ng-init="playNameCtrl.id=playlist._id"
+							ng-click="requestPlaylistChange(playlist._id)">
+							
+							<span editable-text="playlist.name" 
+								e-form="newNameInput$index" 
+								onbeforesave="updatePlaylist($data,playlist._id)">{{playlist.name || 'No Name'}}
+							</span>
+							
+							<span class="glyphicon glyphicon-trash pull-right lineHeight" 
+								stop-event
+								confirmed-click="removePlaylist(playlist._id)" 
+								ng-confirm-click="Are you wish to delete the playlist titled '{{playlist.name}}?' The tracks in the playlist will not be deleted.">
+							</span>
+							
+							<span class="glyphicon glyphicon-edit pull-right lineHeight" 
+								ng-click="newNameInput$index.$show()" 
+								ng-hide="newNameInput$index.$visible">
+							</span>
+						</li>
+					</ul>
+				</div>
+			</div>	
+		</div>
+		<footer class="row cl">
+				<hr />
+			RadioDan ::: Since 2010 ::: Daniel Fuller
+		</footer>
+	</div>
+</body>
+</html>
